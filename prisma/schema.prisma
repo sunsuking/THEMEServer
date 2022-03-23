@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Authentication
+
+/// Auth Base Model
+model User {
+  id        Int          @id @default(autoincrement())
+  username  String       @unique
+  password  String
+  status    UserStatus   @default(ACTIVE)
+  platform  UserPlatform
+  isDeleted Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now())
+  profile   Profile?
+}
+
+model Profile {
+  id             Int             @id @default(autoincrement())
+  user           User            @relation(fields: [userId], references: [id])
+  userId         Int             @unique
+  nickname       String?         @unique
+  phoneNumber    String?         @unique
+  birthDay       DateTime?
+  gender         ProfileGender
+  isDeleted      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now())
+  uploadImage    Image[]
+  customProducts CustomProduct[]
+  addresses      Address[]
+  buckets        Bucket[]
+  point          Point[]
+}
+
+model Address {
+  id              Int     @id @default(autoincrement())
+  profile         Profile @relation(fields: [profileId], references: [id])
+  profileId       Int
+  roadNameAddress String
+  detailAddress   String?
+  priority        Int     @default(1)
+  memo            String?
+}
+
+model Bucket {
+  id              Int           @id @default(autoincrement())
+  profile         Profile       @relation(fields: [profileId], references: [id])
+  profileId       Int
+  customProduct   CustomProduct @relation(fields: [customProductId], references: [id])
+  customProductId Int
+  amount          Int           @default(1)
+  isPurchase      Boolean       @default(false)
+  // size
+}
+
+model Point {
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+  point     Int
+  memo      String?
+}
+
+model MainCategory {
+  id            Int           @id @default(autoincrement())
+  name          String
+  subCategories SubCategory[]
+}
+
+model SubCategory {
+  id             Int          @id @default(autoincrement())
+  mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
+  mainCategoryId Int          @unique
+  name           String
+  products       Product[]
+}
+
+/// User Upload Image
+model Image {
+  id           Int           @id @default(autoincrement())
+  Profile      Profile       @relation(fields: [profileId], references: [id])
+  profileId    Int
+  uploadTo     String?
+  width        Float
+  height       Float
+  customImages CustomImage[]
+}
+
+/// User Custom Image
+model CustomImage {
+  id             Int             @id @default(autoincrement())
+  image          Image           @relation(fields: [imageId], references: [id])
+  imageId        Int             @unique
+  posX           Float           @default(0)
+  posY           Float           @default(0)
+  scaleX         Float           @default(0)
+  scaleY         Float           @default(0)
+  rotate         Float           @default(0)
+  customProducts CustomProduct[]
+}
+
+model Product {
+  id             Int             @id @default(autoincrement())
+  subCategory    SubCategory     @relation(fields: [subCategoryId], references: [id])
+  subCategoryId  Int
+  uploadTo       String // Product Image
+  // TODO: 착용 사진 및 3D Rendering 이미지 추가 논의
+  price          Int
+  // colors, sizes, badges, sales
+  customProducts CustomProduct[]
+}
+
+model CustomProduct {
+  id             Int             @id @default(autoincrement())
+  profile        Profile         @relation(fields: [profileId], references: [id])
+  profileId      Int
+  product        Product         @relation(fields: [productId], references: [id])
+  productId      Int
+  customImages   CustomImage[]
+  customStickers CustomSticker[]
+  Bucket         Bucket[]
+}
+
+model StickerCategory {
+  id        Int       @id @default(autoincrement())
+  name      String
+  isPrimium Boolean   @default(false)
+  stickers  Sticker[]
+}
+
+model Sticker {
+  id         Int             @id @default(autoincrement())
+  category   StickerCategory @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  name       String
+  uploadTo   String
+  customs    CustomSticker[]
+}
+
+model CustomSticker {
+  id             Int             @id @default(autoincrement())
+  sticker        Sticker         @relation(fields: [stickerId], references: [id])
+  stickerId      Int             @unique
+  posX           Float           @default(0)
+  posY           Float           @default(0)
+  scaleX         Float           @default(0)
+  scaleY         Float           @default(0)
+  rotate         Float           @default(0)
+  customProducts CustomProduct[]
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  MANAGER
+}
+
+enum UserPlatform {
+  KAKAO
+  GOOGLE
+}
+
+enum ProfileGender {
+  MALE
+  FEMALE
+}
