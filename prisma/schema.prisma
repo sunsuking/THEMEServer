@@ -19,9 +19,9 @@ model User {
   password  String
   status    UserStatus   @default(ACTIVE)
   platform  UserPlatform
-  isDeleted Boolean      @default(false)
   createdAt DateTime     @default(now())
-  updatedAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  isDeleted Boolean      @default(false)
   profile   Profile?
 }
 
@@ -29,28 +29,36 @@ model Profile {
   id             Int             @id @default(autoincrement())
   user           User            @relation(fields: [userId], references: [id])
   userId         Int             @unique
+  email          String?
   nickname       String?         @unique
   phoneNumber    String?         @unique
   birthDay       DateTime?
-  gender         ProfileGender
-  isDeleted      Boolean         @default(false)
+  gender         ProfileGender?
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  isDeleted      Boolean         @default(false)
   uploadImage    Image[]
   customProducts CustomProduct[]
   addresses      Address[]
   buckets        Bucket[]
-  point          Point[]
+  point          Int             @default(0)
+  points         Point[]
+  Review         Review[]
+  Order          Order[]
 }
 
 model Address {
-  id              Int     @id @default(autoincrement())
-  profile         Profile @relation(fields: [profileId], references: [id])
+  id              Int      @id @default(autoincrement())
+  profile         Profile  @relation(fields: [profileId], references: [id])
   profileId       Int
   roadNameAddress String
   detailAddress   String?
-  priority        Int     @default(1)
+  priority        Int      @default(1)
   memo            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  isDeleted       Boolean  @default(false)
+  Order           Order[]
 }
 
 model Bucket {
@@ -61,15 +69,55 @@ model Bucket {
   customProductId Int
   amount          Int           @default(1)
   isPurchase      Boolean       @default(false)
-  // size
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  isDeleted       Boolean       @default(false)
 }
 
 model Point {
-  id        Int     @id @default(autoincrement())
-  profile   Profile @relation(fields: [profileId], references: [id])
+  id        Int      @id @default(autoincrement())
+  profile   Profile  @relation(fields: [profileId], references: [id])
   profileId Int
   point     Int
   memo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+}
+
+model Order {
+  id            Int            @id @default(autoincrement())
+  profile       Profile        @relation(fields: [profileId], references: [id])
+  profileId     Int
+  orderProducts OrderProduct[]
+  address       Address        @relation(fields: [addressId], references: [id])
+  addressId     Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  isDeleted     Boolean        @default(false)
+  // 결제 관련 필드 필드
+}
+
+model OrderProduct {
+  id              Int           @id @default(autoincrement())
+  customProduct   CustomProduct @relation(fields: [customProductId], references: [id])
+  customProductId Int
+  amount          Int
+  Order           Order         @relation(fields: [orderId], references: [id])
+  orderId         Int
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  profile   Profile  @relation(fields: [profileId], references: [id])
+  profileId Int
+  rating    Int      @default(10)
+  uploadTo  String?
+  sns       SNS?
+  snsLink   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
 model MainCategory {
@@ -94,6 +142,9 @@ model Image {
   uploadTo     String?
   width        Float
   height       Float
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isDeleted    Boolean       @default(false)
   customImages CustomImage[]
 }
 
@@ -107,18 +158,28 @@ model CustomImage {
   scaleX         Float           @default(0)
   scaleY         Float           @default(0)
   rotate         Float           @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  isDeleted      Boolean         @default(false)
   customProducts CustomProduct[]
 }
 
 model Product {
-  id             Int             @id @default(autoincrement())
-  subCategory    SubCategory     @relation(fields: [subCategoryId], references: [id])
-  subCategoryId  Int
-  uploadTo       String // Product Image
+  id                 Int                 @id @default(autoincrement())
+  subCategory        SubCategory         @relation(fields: [subCategoryId], references: [id])
+  subCategoryId      Int
+  uploadTo           String // Product Image
   // TODO: 착용 사진 및 3D Rendering 이미지 추가 논의
-  price          Int
+  price              Int
+  customProducts     CustomProduct[]
+  ProductDescription ProductDescription?
+}
+
+model ProductDescription {
+  id        Int     @id @default(autoincrement())
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int     @unique
   // colors, sizes, badges, sales
-  customProducts CustomProduct[]
 }
 
 model CustomProduct {
@@ -127,9 +188,13 @@ model CustomProduct {
   profileId      Int
   product        Product         @relation(fields: [productId], references: [id])
   productId      Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  isDeleted      Boolean         @default(false)
   customImages   CustomImage[]
   customStickers CustomSticker[]
   Bucket         Bucket[]
+  OrderProduct   OrderProduct[]
 }
 
 model StickerCategory {
@@ -174,4 +239,10 @@ enum UserPlatform {
 enum ProfileGender {
   MALE
   FEMALE
+}
+
+enum SNS {
+  Facebook
+  Instagram
+  Twitter
 }
