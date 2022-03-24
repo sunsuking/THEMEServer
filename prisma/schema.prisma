@@ -11,18 +11,18 @@ datasource db {
 }
 
 // Authentication
-
 /// Auth Base Model
 model User {
-  id        Int          @id @default(autoincrement())
-  username  String       @unique
-  password  String
-  status    UserStatus   @default(ACTIVE)
-  platform  UserPlatform
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  isDeleted Boolean      @default(false)
-  profile   Profile?
+  id         Int          @id @default(autoincrement())
+  username   String       @unique
+  password   String
+  status     UserStatus   @default(ACTIVE)
+  platform   UserPlatform
+  platformId String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  isDeleted  Boolean      @default(false)
+  profile    Profile?
 }
 
 model Profile {
