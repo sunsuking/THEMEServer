@@ -22,7 +22,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     const { id, name, emails } = profile;
     const user: GoogleLoginDto = {
-      username: `GOOGLE${id}`,
+      username: emails[0].value,
       googleId: id,
       platform: 'GOOGLE',
       email: emails[0].value,

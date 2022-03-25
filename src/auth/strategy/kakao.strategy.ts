@@ -14,7 +14,9 @@ export class KaKaoStrategy extends PassportStrategy(Strategy) {
     const profileJson = profile._json;
     const kakaoAccount = profileJson.kakao_account;
     const payload: KakaoLoginDto = {
-      username: `KAKAO${profileJson.id}`,
+      username: kakaoAccount.has_email
+        ? kakaoAccount.email
+        : `KAKAO${profileJson.id}`,
       nickname: kakaoAccount.profile.nickname,
       platform: 'KAKAO',
       kakaoId: String(profileJson.id),

@@ -14,7 +14,7 @@ import { JwtStrategy } from 'auth/strategy/jwt.strategy';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET_KEY,
-      signOptions: { expiresIn: '60s' },
+      signOptions: { expiresIn: 60 * 60 * 24 * 7 },
     }),
   ],
   controllers: [AuthController],
@@ -25,5 +25,6 @@ import { JwtStrategy } from 'auth/strategy/jwt.strategy';
     KaKaoStrategy,
     JwtStrategy,
   ],
+  exports: [JwtStrategy, PassportModule],
 })
 export class AuthModule {}
