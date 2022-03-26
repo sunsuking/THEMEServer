@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma.service';
-import { Address, Bucket, Image, Profile } from '@prisma/client';
+import { Address, Bucket, Image, Profile, User } from '@prisma/client';
 
 import { CreateProfileDto } from 'accounts/dto/create-profile.dto';
 import { UpdateProfileDto } from 'accounts/dto/update-profile.dto';
@@ -9,58 +9,68 @@ import { UpdateProfileDto } from 'accounts/dto/update-profile.dto';
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // 프로필 정보를 조회하기 위하여 사용
-  async findProfile(id: number): Promise<Profile> {
-    return this.prisma.profile.findUnique({
-      where: { id },
-    });
-  }
-
-  // 프로필 생성을 위하여 사용
+  // 프로필 생성을 위하여 사용 -> API 제외, User 와 연동해서 사용
   async createProfile(createProfileDto: CreateProfileDto): Promise<Profile> {
     return this.prisma.profile.create({
       data: createProfileDto,
     });
   }
 
-  // 프로필을 수정하기 위하여 사용
-  async updateProfile(
-    id: number,
-    updateProfileDto: UpdateProfileDto,
-  ): Promise<Profile> {
-    return this.prisma.profile.update({
-      data: updateProfileDto,
-      where: { userId: id },
+  async findProfileByUser(user: User): Promise<Profile> {
+    return this.prisma.profile.findUnique({
+      where: { userId: user.id },
     });
   }
 
-  // 프로필을 삭제하기 위하여 사용
+  // 프로필을 수정하기 위하여 사용
+  async updateProfile(
+    user: User,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<Profile> {
+    const profile: Profile = await this.findProfileByUser(user);
+    return this.prisma.profile.update({
+      data: updateProfileDto,
+      where: { id: profile.id },
+    });
+  }
+
+  // 프로필을 삭제하기 위하여 사용 -> API 제외, User 와 연동해서 사용
   async deleteProfile(id: number): Promise<void> {
     this.prisma.profile.delete({
       where: { id },
     });
   }
 
-  // 프로필 포인트 정산을 위하여 사용
-  async calculateProfilePoint(profile: Profile): Promise<void> {
+  // 프로필 포인트 정산을 위하여 사용 -> API 제외, User 구매 시 사용
+  async calculateProfilePoint(user: User): Promise<void> {
+    const profile: Profile = await this.findProfileByUser(user);
     this.prisma.point.findMany({
       where: { id: profile.id },
     });
   }
 
   // 프로필에 해당하는 배송지들을 우선순위를 기준으로 조회하기 위하여 사용
-  async findProfileAddresses(profile: Profile): Promise<Address[]> {
+  async findProfileAddresses(user: User): Promise<Address[]> {
+    const profile: Profile = await this.findProfileByUser(user);
     return this.prisma.address.findMany({
       where: { profileId: profile.id },
       orderBy: [{ priority: 'desc' }],
+      take: 5,
+    });
+  }
+
+  async findImageById(id: number): Promise<Image> {
+    return this.prisma.image.findUnique({
+      where: { id },
     });
   }
 
   // 프로필에 해당하는 업로드 이미지들을 업로드일을 기준으로 조회하기 위하여 사용
-  async findProfileImages(profile: Profile): Promise<Image[]> {
+  async findProfileImages(user: User): Promise<Image[]> {
+    const profile: Profile = await this.findProfileByUser(user);
     return this.prisma.image.findMany({
       where: { profileId: profile.id },
-      // orderBy: [{ createdAt: 'desc' }]
+      orderBy: [{ createdAt: 'desc' }],
     });
   }
 
@@ -71,11 +81,18 @@ export class AccountsService {
     });
   }
 
+  async isImageOwner(id: number, user: User): Promise<boolean> {
+    const image: Image = await this.findImageById(id);
+    const profile: Profile = await this.findProfileByUser(user);
+    return image.profileId === profile.id;
+  }
+
   // 프로필에 해당하는 버킷리스트들을 조회하기 위하여 사용
-  async findProfileBucketLists(profile: Profile): Promise<Bucket[]> {
+  async findProfileBucketLists(user: User): Promise<Bucket[]> {
+    const profile: Profile = await this.findProfileByUser(user);
     return this.prisma.bucket.findMany({
       where: { profileId: profile.id, isPurchase: false },
-      // orderBy: [{ createdAt: 'desc' }]
+      orderBy: [{ createdAt: 'desc' }],
     });
   }
 
@@ -97,11 +114,18 @@ export class AccountsService {
     });
   }
 
+  async isBucketOwner(id: number, user: User): Promise<boolean> {
+    const bucket: Bucket = await this.findBucket(id);
+    const profile: Profile = await this.findProfileByUser(user);
+    return bucket.profileId === profile.id;
+  }
+
   // 프로필에 해당하는 장바구니 상품들을 조회하기 위하여 사용
-  async findProfileShoppingLists(profile: Profile): Promise<Bucket[]> {
+  async findProfileShoppingLists(user: User): Promise<Bucket[]> {
+    const profile: Profile = await this.findProfileByUser(user);
     return this.prisma.bucket.findMany({
       where: { profileId: profile.id, isPurchase: true },
-      // orderBy: [{ createdAt: 'desc' }]
+      orderBy: [{ createdAt: 'desc' }],
     });
   }
 }
