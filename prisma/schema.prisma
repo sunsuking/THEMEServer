@@ -10,56 +10,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Authentication
-/// Auth Base Model
+/// 사용자 베이스(유저) 테이블
 model User {
   id         Int          @id @default(autoincrement())
   username   String       @unique
   password   String
-  status     UserStatus   @default(ACTIVE)
+  role       Role         @default(USER)
   platform   UserPlatform
   platformId String
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  isDeleted  Boolean      @default(false)
   profile    Profile?
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
+/// 유저를 바탕으로 생성한 실사용자 테이블
 model Profile {
-  id             Int             @id @default(autoincrement())
-  user           User            @relation(fields: [userId], references: [id])
-  userId         Int             @unique
-  email          String?         @unique
-  name           String?
-  nickname       String?         @unique
-  phoneNumber    String?         @unique
-  birthDay       DateTime?
-  gender         ProfileGender?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  isDeleted      Boolean         @default(false)
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique
+
+  imageURL    String?
+  email       String?
+  name        String?
+  nickname    String?        @unique
+  description String?
+  phoneNumber String?        @unique
+  birthDay    DateTime?
+  gender      ProfileGender?
+  point       Int            @default(0)
+  followedBy  Profile[]      @relation("UserFollows", references: [id])
+  following   Profile[]      @relation("UserFollows", references: [id])
+
+  points         Point[]
   uploadImage    Image[]
   customProducts CustomProduct[]
   addresses      Address[]
   buckets        Bucket[]
-  point          Int             @default(0)
-  points         Point[]
-  Review         Review[]
-  Order          Order[]
+  orders         Order[]
+
+  // 오직 SHOP 권한을 가진 사용자만 사용 가능한 기능
+  events Event[]
+
+  reviews        Review[]        @relation("UserReview")
+  scrapedReviews Review[]        @relation("UserReviewScraped")
+  likedReviews   Review[]        @relation("UserReviewLiked")
+  reviewComments ReviewComment[]
+
+  posts        Post[]        @relation("UserPost")
+  scrapedPosts Post[]        @relation("UserPostScraped")
+  likedPosts   Post[]        @relation("UserPostLiked")
+  postComments PostComment[]
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
 model Address {
-  id              Int      @id @default(autoincrement())
-  profile         Profile  @relation(fields: [profileId], references: [id])
-  profileId       Int
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+
   roadNameAddress String
   detailAddress   String?
-  priority        Int      @default(1)
-  memo            String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  isDeleted       Boolean  @default(false)
-  Order           Order[]
+  priority        Int     @default(1)
+  memo            String? // 경비실에 맞겨주세요 등등 다양한 선택지 제공
+
+  orders Order[]
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+
+  // 동일한 프로필에 동일한 우선순위가 존재해서는 안됨.
+  @@unique([profileId, priority])
 }
 
 model Bucket {
@@ -68,114 +97,278 @@ model Bucket {
   profileId       Int
   customProduct   CustomProduct @relation(fields: [customProductId], references: [id])
   customProductId Int
-  amount          Int           @default(1)
-  isPurchase      Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  isDeleted       Boolean       @default(false)
+
+  amount Int @default(1)
+
+  // 장바구니와 위시리스트를 판단하는 BOOLEAN 값
+  isPurchase Boolean @default(false)
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+
+  // 하나의 프로필에 하나의 커스텀 제품만 포함되도록 설계
+  @@unique([profileId, customProductId])
 }
 
+/// 사용자 포인트를 기록하기 위한 테이블
 model Point {
-  id        Int      @id @default(autoincrement())
-  profile   Profile  @relation(fields: [profileId], references: [id])
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
   profileId Int
-  point     Int
-  memo      String?
+
+  point Int
+  memo  String
+
+  // 사용자 정보를 기록하기 위하여 사용
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isDeleted Boolean  @default(false)
 }
 
+/// 한번의 주문을 위한 테이블
 model Order {
-  id            Int            @id @default(autoincrement())
-  profile       Profile        @relation(fields: [profileId], references: [id])
-  profileId     Int
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+  address   Address @relation(fields: [addressId], references: [id])
+  addressId Int
+
   orderProducts OrderProduct[]
-  address       Address        @relation(fields: [addressId], references: [id])
-  addressId     Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  isDeleted     Boolean        @default(false)
   // 결제 관련 필드 필드
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
+/// Order 내부에 존재하는 다양한 상품들 테이블
 model OrderProduct {
   id              Int           @id @default(autoincrement())
   customProduct   CustomProduct @relation(fields: [customProductId], references: [id])
   customProductId Int
-  amount          Int
-  Order           Order         @relation(fields: [orderId], references: [id])
+  order           Order         @relation(fields: [orderId], references: [id])
   orderId         Int
-}
 
-model Review {
-  id        Int      @id @default(autoincrement())
-  profile   Profile  @relation(fields: [profileId], references: [id])
-  profileId Int
-  rating    Int      @default(10)
-  uploadTo  String?
-  sns       SNS?
-  snsLink   String?
+  amount Int
+
+  // 사용자 정보를 기록하기 위하여 사용
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isDeleted Boolean  @default(false)
 }
 
-model MainCategory {
-  id            Int           @id @default(autoincrement())
-  name          String
-  subCategories SubCategory[]
+/// 이벤트의 카테고리 테이블
+model EventCategory {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  events Event[]
 }
 
-model SubCategory {
-  id             Int          @id @default(autoincrement())
-  mainCategory   MainCategory @relation(fields: [mainCategoryId], references: [id])
-  mainCategoryId Int          @unique
-  name           String
-  products       Product[]
+/// 이벤트 테이블
+model Event {
+  id         Int           @id @default(autoincrement())
+  category   EventCategory @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  profile    Profile       @relation(fields: [profileId], references: [id])
+  profileId  Int
+
+  title            String
+  backdropImageURL String
+  imageURLs        String[]
+  decription       String?
+  startDate        DateTime
+  endDate          DateTime
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
-/// User Upload Image
+/// 리뷰 테이블
+model Review {
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation("UserReview", fields: [profileId], references: [id])
+  profileId Int
+
+  title     String?
+  rating    Int      @default(10)
+  imageURLs String[]
+
+  // SNS 연동 기능 추가 시 사용
+  sns     SNS?
+  snsLink String?
+
+  tags      ReviewTag[]
+  comments  ReviewComment[]
+  scrappers Profile[]       @relation("UserReviewScraped")
+  likers    Profile[]       @relation("UserReviewLiked")
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+}
+
+/// 리뷰에 존재하는 태그 테이블
+model ReviewTag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  reviews Review[]
+}
+
+/// 리뷰 댓글 테이블
+model ReviewComment {
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+  review    Review  @relation(fields: [reviewId], references: [id])
+  reviewId  Int
+
+  comment String
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+}
+
+/// 포스팅 카테고리 테이블
+model PostCategory {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  posts Post[]
+}
+
+/// 포스팅 테이블
+model Post {
+  id         Int          @id @default(autoincrement())
+  category   PostCategory @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  profile    Profile      @relation("UserPost", fields: [profileId], references: [id])
+  profileId  Int
+
+  title String
+
+  tags       PostTag[]
+  comments   PostComment[]
+  scrappers  Profile[]     @relation("UserPostScraped")
+  likers     Profile[]     @relation("UserPostLiked")
+  viewCounts Int           @default(0)
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+}
+
+/// 포스팅에 존재하는 태그 테이블
+model PostTag {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  posts Post[]
+}
+
+/// 포스팅 댓글 테이블
+model PostComment {
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+  post      Post    @relation(fields: [postId], references: [id])
+  postId    Int
+
+  comment String
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+}
+
+/// 상품 대분류 테이블
+model ProductMainCategory {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  subCategories ProductSubCategory[]
+}
+
+/// 상품 소분류 테이블
+model ProductSubCategory {
+  id             Int                 @id @default(autoincrement())
+  mainCategory   ProductMainCategory @relation(fields: [mainCategoryId], references: [id])
+  mainCategoryId Int
+
+  name String
+
+  products Product[]
+
+  // 대분류안에 소분류가 하나만 존재하도록
+  @@unique([mainCategoryId, name])
+}
+
+/// 유저가 업로드한 이미지 테이블
 model Image {
-  id           Int           @id @default(autoincrement())
-  Profile      Profile       @relation(fields: [profileId], references: [id])
-  profileId    Int
-  uploadTo     String?
-  width        Float
-  height       Float
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  isDeleted    Boolean       @default(false)
-  customImages CustomImage[]
+  id        Int     @id @default(autoincrement())
+  Profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+
+  imageURL String
+  width    Float
+  height   Float
+
+  customImages CustomImage[] // 이미지를 바탕으로 사용자가 커스텀한 이미지들
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
-/// User Custom Image
+/// 유저가 업로드한 이미지를 바탕으로 커스텀한 이미지 테이블
 model CustomImage {
-  id             Int             @id @default(autoincrement())
-  image          Image           @relation(fields: [imageId], references: [id])
-  imageId        Int             @unique
-  posX           Float           @default(0)
-  posY           Float           @default(0)
-  scaleX         Float           @default(0)
-  scaleY         Float           @default(0)
-  rotate         Float           @default(0)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  isDeleted      Boolean         @default(false)
+  id      Int   @id @default(autoincrement())
+  image   Image @relation(fields: [imageId], references: [id])
+  imageId Int
+
+  posX   Float @default(0)
+  posY   Float @default(0)
+  scaleX Float @default(0)
+  scaleY Float @default(0)
+  rotate Float @default(0)
+
   customProducts CustomProduct[]
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
+// TODO: 상품의 재고 갯수를 기록해주는 테이블 생성
+/// 상품 테이블
 model Product {
-  id                 Int                 @id @default(autoincrement())
-  subCategory        SubCategory         @relation(fields: [subCategoryId], references: [id])
-  subCategoryId      Int
-  uploadTo           String // Product Image
-  // TODO: 착용 사진 및 3D Rendering 이미지 추가 논의
-  price              Int
+  id            Int                @id @default(autoincrement())
+  subCategory   ProductSubCategory @relation(fields: [subCategoryId], references: [id])
+  subCategoryId Int
+
+  name             String?
+  backdropImageURL String // 상품 이미지를 다양하게 받기 위하여
+  price            Int
+  discountRate     Float   @default(0)
+
   customProducts     CustomProduct[]
   ProductDescription ProductDescription?
+  createdAt          DateTime            @default(now())
 }
 
+/// 상품에 대한 설명이 들어갈 테이블
 model ProductDescription {
   id        Int     @id @default(autoincrement())
   product   Product @relation(fields: [productId], references: [id])
@@ -183,52 +376,65 @@ model ProductDescription {
   // colors, sizes, badges, sales
 }
 
+/// 사용자가 제작한 커스텀 상품 테이블
 model CustomProduct {
-  id             Int             @id @default(autoincrement())
-  profile        Profile         @relation(fields: [profileId], references: [id])
-  profileId      Int
-  product        Product         @relation(fields: [productId], references: [id])
-  productId      Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  isDeleted      Boolean         @default(false)
+  id        Int     @id @default(autoincrement())
+  profile   Profile @relation(fields: [profileId], references: [id])
+  profileId Int
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
   customImages   CustomImage[]
   customStickers CustomSticker[]
   Bucket         Bucket[]
   OrderProduct   OrderProduct[]
+
+  // 사용자 정보를 기록하기 위하여 사용
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
 }
 
+/// 스티커 카테고리 테이블
 model StickerCategory {
-  id        Int       @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   name      String
-  isPrimium Boolean   @default(false)
-  stickers  Sticker[]
+  isPrimium Boolean @default(false)
+
+  stickers Sticker[]
 }
 
+// TODO: 특정 사용자가 새롭게 만들어 판매하는 스티커 구현해야할지
+/// 스티커 테이블
 model Sticker {
   id         Int             @id @default(autoincrement())
   category   StickerCategory @relation(fields: [categoryId], references: [id])
   categoryId Int
-  name       String
-  uploadTo   String
-  customs    CustomSticker[]
+
+  name     String
+  imageURL String
+  customs  CustomSticker[]
 }
 
+/// 사용자가 스티커를 바탕으로 수정하여 커스텀에 사용한 스티커 테이블
 model CustomSticker {
-  id             Int             @id @default(autoincrement())
-  sticker        Sticker         @relation(fields: [stickerId], references: [id])
-  stickerId      Int             @unique
-  posX           Float           @default(0)
-  posY           Float           @default(0)
-  scaleX         Float           @default(0)
-  scaleY         Float           @default(0)
-  rotate         Float           @default(0)
+  id        Int     @id @default(autoincrement())
+  sticker   Sticker @relation(fields: [stickerId], references: [id])
+  stickerId Int
+
+  posX   Float @default(0)
+  posY   Float @default(0)
+  scaleX Float @default(0)
+  scaleY Float @default(0)
+  rotate Float @default(0)
+
   customProducts CustomProduct[]
 }
 
-enum UserStatus {
-  ACTIVE
-  BLOCKED
+enum Role {
+  USER
+  EDITOR
+  SHOP
   MANAGER
 }
 
